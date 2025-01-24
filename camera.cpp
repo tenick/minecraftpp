@@ -17,6 +17,7 @@
 #include <glm/gtx/io.hpp>
 #include <glm/gtx/string_cast.hpp>
 #include <iostream>
+#include <cmath>
 #include <vector>
 class Camera {
 public:
@@ -56,14 +57,36 @@ public:
     return glm::normalize(cross(camFront(), up));
   }
 
-  glm::mat4 myLookAt2(glm::vec3 campos, glm::vec3 camfront, glm::vec3 worldup){
-    // default dir is facing negative z-axis
-    glm::vec4 front{0,0,-1,0};
+  glm::mat4 myLookAt2(){
+    glm::vec4 defdir{0,0,-1, 0};
     auto id = glm::mat4(1);
-    auto r = glm::rotate(id, -glm::radians(angle.x), glm::vec3(0,1,0));
-    r = glm::rotate(r, -glm::radians(angle.y), glm::vec3(1,0,0));
-    glm::vec3 dir = glm::normalize(campos - camfront);
+    auto r = glm::rotate(id, glm::radians(-angle.x), glm::vec3(0,1,0));
+    r = glm::rotate(r, glm::radians(-angle.y), glm::vec3(1,0,0));
+
+    glm::vec3 dir(-glm::normalize(r * defdir));
+    glm::vec3 right = glm::normalize(glm::cross({0,1,0}, dir));
+    glm::vec3 yup = glm::normalize(glm::cross(dir, right));
+    glm::mat4 m1(
+        right.x, right.y, right.z, 0,
+        yup.x, yup.y, yup.z, 0,
+        dir.x, dir.y, dir.z, 0,
+        0,0,0,1
+        );
+    m1 = glm::inverse(m1);
+
+    glm::mat4 m2(
+        1,0,0,-camPos.x,
+        0,1,0,-camPos.y,
+        0,0,1,-camPos.z,
+        0,0,0,1);
+    m2 = glm::transpose(m2);
+    m2 = glm::mat4(1,0,0,0,
+        0,1,0,0,
+        0,0,1,0,
+        -camPos.x, -camPos.y, -camPos.z,1);
+    return m1 * m2;
   }
+
   glm::mat4 myLookAt(glm::vec3 campos, glm::vec3 camfront, glm::vec3 worldup){
     glm::vec3 dir = glm::normalize(campos - camfront);
     glm::vec3 right = glm::normalize(glm::cross(worldup, dir));
@@ -83,7 +106,9 @@ public:
   }
   int cnter = 0;
   glm::mat4 getLookAt() {
+    return myLookAt2();
     return myLookAt(camPos, camFront() + camPos, up);
+
     auto d = camFront();
     auto r = camRight();
     auto u = glm::cross(d, r);
@@ -160,6 +185,31 @@ public:
     auto r = glm::rotate(id, -glm::radians(angle.x), glm::vec3(0,1,0));
     r = glm::rotate(r, -glm::radians(angle.y), glm::vec3(1,0,0));
     return glm::normalize(r * front);
+  }
+  glm::mat4 projectionMatrix(float horizontalFov, float aspectRatio, float n, float f) {
+    float r = tan(horizontalFov/2) * n;
+    float l = -r;
+    float h = 1/aspectRatio * (r - l);
+    float t = h/2;
+    float b = -t;
+    // float n = 0.1f, f = 100.0f;
+    // float l = -0.0552, r = -l;
+    // float b = -0.0414, t = -b;
+    glm::mat4 projection(
+        2.0f * n / (r - l), 0, 0, 0,
+        0, 2.0f * n / (t - b), 0, 0,
+        (r + l) / (r - l), (t + b) / (t - b), (f + n) / (n - f), -1,
+        0, 0, 2 * n * f / (n - f), 0
+        );
+    return projection;
+  }
+  glm::mat4 getProjection() {
+    float horizontalFov = 45.0f; // degrees
+    float aspectRatio = 1.0f * WINDOW_WIDTH / WINDOW_HEIGHT;
+    float near = 0.1f, far = 100.0f;
+    return projectionMatrix(glm::radians(horizontalFov), aspectRatio, near, far);
+    auto projection = glm::perspective(glm::radians(horizontalFov), aspectRatio, near, far);
+    return projection;
   }
   GLFWwindow* _window;
   glm::vec3 camPos;

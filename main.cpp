@@ -1,6 +1,7 @@
 #include "stb_image.h"
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <glm/ext/matrix_clip_space.hpp>
 #include <glm/ext/matrix_float4x4.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/matrix.hpp>
@@ -209,7 +210,8 @@ int main() {
 
     void main()
     {
-       gl_Position = projection * view * transform * vec4(aPos, 1.0);
+       vec4 res = projection * view * transform * vec4(aPos, 1.0);
+       gl_Position = res;
        // vertexColor = vec4(1, 0, 0, 1);
        vertexColor = vec4(aColor, 1);
        texCoord = aTexPos;
@@ -339,8 +341,8 @@ int main() {
       // view = glm::translate(view, camera.camPos);
       glm::mat4 view = camera.getLookAt();
 
-      glm::mat4 projection;
-      projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
+      glm::mat4 projection = camera.getProjection();
+      // projection = glm::ortho(0.0f, 800.0f, 0.0f, 600.0f, 0.1f, 100.0f);
       glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
       glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
       glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
