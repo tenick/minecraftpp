@@ -1,4 +1,5 @@
 #include "stb_image.h"
+#include <cmath>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/ext/matrix_clip_space.hpp>
@@ -10,6 +11,7 @@
 #include <sys/types.h>
 #include <vector>
 #include <math.h>
+#include <fstream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -74,8 +76,25 @@ unsigned int create_texture(const std::string& fileName, GLenum activeTexture, G
   stbi_image_free(data);
   return texture;
 }
-const int WINDOW_WIDTH = 1024;
-const int WINDOW_HEIGHT = 768;
+unsigned char* load_noise() {
+  int width, height, nrChannels;
+  unsigned char *data = stbi_load("noiseTexture.png", &width, &height, &nrChannels, STBI_grey);
+  std::cout << "da noise uh: " << width << " " << height << " " << nrChannels << std::endl;
+  std::cout << "Length of array = " << (sizeof(data)/sizeof(*data)) << std::endl;
+  return data;
+  for (int i = 0; i < width * height; i++) {
+    std::cout << int(data[i]) << std::endl;
+  }
+  stbi_image_free(data);
+}
+
+float linearMap(float froma, float fromb, float toa, float tob, float x) {
+  float m = (tob - toa) / (fromb - froma);
+  return m * (x - fromb) + tob; 
+}
+
+const int WINDOW_WIDTH = 1920;
+const int WINDOW_HEIGHT = 1080;
 int main() {
   std::cout << "hello world!!\n";
   glfwInit();
@@ -106,7 +125,7 @@ int main() {
   glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
   // finish initialization
 
-
+  // auto data = load_noise();
   // create VAO
   // unsigned int VAO;
   glGenVertexArrays(1, &VAO);
@@ -204,13 +223,13 @@ int main() {
     out vec2 texCoord;
 
     uniform vec4 ourColor;
-    uniform mat4 transform;
+    uniform mat4 model;
     uniform mat4 view;
     uniform mat4 projection;
 
     void main()
     {
-       vec4 res = projection * view * transform * vec4(aPos, 1.0);
+       vec4 res = projection * view * model * vec4(aPos, 1.0);
        gl_Position = res;
        // vertexColor = vec4(1, 0, 0, 1);
        vertexColor = vec4(aColor, 1);
@@ -272,43 +291,69 @@ int main() {
   // unbind VAO (finish recording vertex attribute calls)
   glBindVertexArray(0);
 
-  // glm prac
-  glm::vec4 vec{1.0f, 0.0f, 0.0f, 1.0f};
-  glm::mat4 trans = glm::mat4(1.0f);
-  glm::mat4 view;
-  view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-  glm::mat4 projection;
-  projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
-  trans = glm::translate(trans, glm::vec3(0.5f, 0.5f, 0.0f));
-  trans = glm::rotate(trans, glm::radians(180.0f), glm::vec3(0, 0, 1.0f)); 
-
-  vec = projection * view * trans * vec;
-  std::cout << "test: " << vec.x << ", " << vec.y << ", " << vec.z << '\n';
-  std::cout << glm::to_string(trans) << '\n';
-
-  // bind matrix to uniform
-  // glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
-  // glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
-  // glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
-
-  float r=0.5, g=0.1, b=0.2;
-  float rotval = 0;
-
   // define different cube models
-  //
   std::vector<glm::vec3> cubePositions = {
-    glm::vec3( 0.0f,  0.0f,  0.0f),
+    glm::vec3( 0.0f,  0.0f,  0),
     glm::vec3( 0.0f,  0.0f,  -10),
   };
-  for (int i = 0; i < 50; i++) {
-    for (int j = 0; j < 50; j++) {
-      cubePositions.push_back({i, -10, j});
+
+  // sine 1d
+  // for (int i = 0; i < 180; i++) {
+    // cubePositions.push_back({i, 0, round(5*sin(0.2*i))});
+  // }
+
+  // sine2
+  // for (int i = 0; i < 180; i++) {
+    // for (int j = 0; j < 120; j++) {
+      // float y2 = round(3*sin(j*0.2));
+      // cubePositions.push_back({i, y2, j});
+    // }
+  // }
+
+  // sine3
+  // for (int i = 0; i < 180; i++) {
+    // float y2 = 3*sin(0.1*i);
+    // for (int j = 0; j < 120; j++) {
+      // float y = 3*sin(0.1*j);
+      // float ry = round(y * y2);
+      // cubePositions.push_back({i, ry, j});
+    // }
+  // }
+
+  // perlin noise
+  auto data = load_noise();
+  int maxd = 0;
+  int mind = 1e9;
+  for (int i = 0; i < 120*180; i++) {
+    int pixval = data[i];
+    maxd = std::max(maxd, pixval);
+    mind = std::min(mind, pixval);
+  }
+
+  for (int i = 0; i < 120; i++) {
+    for (int j = 0; j < 180; j++) {
+      int idx = i * 180 + j;
+      int pixval = (int)data[idx];
+      float ry = linearMap(mind, maxd, 0, 13, pixval);
+
+      cubePositions.push_back({i, round(ry), j});
     }
   }
+  // keep track of time
+  float deltaTime = 0.0f;
+  float lastFrame = 0.0f;
 
   // enable depth-testing
   glEnable(GL_DEPTH_TEST);
+
+  float r=0.5, g=0.1, b=0.2;
   while (!glfwWindowShouldClose(window)) {
+    float currentFrame = glfwGetTime();
+    deltaTime = currentFrame - lastFrame;
+    lastFrame = currentFrame;  
+    camera.deltaTime = deltaTime;
+    std::cout << "deltatime = " << deltaTime << std::endl;
+
     processInput(window);
     glClearColor(r, g, b, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -327,25 +372,19 @@ int main() {
 
 
     for (int i = 0; i < cubePositions.size(); i++) {
-      glm::mat4 trans = glm::mat4(1.0f);
-      trans = glm::translate(trans, cubePositions[i]);
-      trans = glm::rotate(trans, glm::radians(90.0f), glm::vec3(1, 0, 0));
-      // trans = glm::rotate(trans, (float)glfwGetTime()*((i+.1f)/10.1f)*glm::pi<float>(), glm::vec3(1.0f, 0.5f, .5f));
-
-      // view
-      // glm::mat4 view = glm::mat4(1.0f);
-      // view = glm::rotate(view, glm::radians(camera.angle.x), glm::vec3{0,1.0f,0});
-      // view = glm::rotate(view, glm::radians(camera.angle.y), glm::vec3{1.0f,0,0});
-      // auto torient = glm::transpose(camera.orientationmat());
-      // glm::mat4 view = torient;
-      // view = glm::translate(view, camera.camPos);
+      glm::mat4 model = glm::mat4(1.0f);
+      model = glm::translate(model, cubePositions[i]);
+      model = glm::rotate(model, glm::radians(90.0f), glm::vec3(1, 0, 0));
+      
       glm::mat4 view = camera.getLookAt();
 
       glm::mat4 projection = camera.getProjection();
-      // projection = glm::ortho(0.0f, 800.0f, 0.0f, 600.0f, 0.1f, 100.0f);
-      glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "transform"), 1, GL_FALSE, glm::value_ptr(trans));
+
+      glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
       glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
       glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+      // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
       // update textures per cube face
       glUniform1i(glGetUniformLocation(shaderProgram, "texture1"), 1);

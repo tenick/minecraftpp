@@ -32,25 +32,25 @@ public:
       auto front = camFront();
       front.y = 0;
       front = glm::normalize(front);
-      camPos += front * camSpeed;
+      camPos += front * camSpeed * deltaTime;
     }
     if (glfwGetKey(_window, GLFW_KEY_S)){
       auto front = camFront();
       front.y = 0;
       front = glm::normalize(front);
-      camPos -= front * camSpeed;
+      camPos -= front * camSpeed * deltaTime;
     }
     if (glfwGetKey(_window, GLFW_KEY_A)) {
-      camPos -= camRight() * camSpeed;
+      camPos -= camRight() * camSpeed * deltaTime;
     }
     if (glfwGetKey(_window, GLFW_KEY_D)) {
-      camPos += camRight() * camSpeed;
+      camPos += camRight() * camSpeed * deltaTime;
     }
     if (glfwGetKey(_window, GLFW_KEY_SPACE)) {
-        camPos += up * camSpeed;
+        camPos += up * camSpeed * deltaTime;
     }
     if (glfwGetKey(_window, GLFW_KEY_LEFT_SHIFT)){
-        camPos -= up * camSpeed;
+        camPos -= up * camSpeed * deltaTime;
     } 
   }
   glm::vec3 camRight() {
@@ -108,57 +108,6 @@ public:
   glm::mat4 getLookAt() {
     return myLookAt2();
     return myLookAt(camPos, camFront() + camPos, up);
-
-    auto d = camFront();
-    auto r = camRight();
-    auto u = glm::cross(d, r);
-    // glm::mat4 lookat(r.x, r.y, r.z, -camPos.x,
-        // u.x, u.y, u.z, -camPos.y,
-        // d.x, d.y, d.z, -camPos.z,
-        // 0, 0, 0, 1);
-    glm::vec4 w{-camPos, 1};
-    glm::mat4 lookat(
-        glm::vec4(r,0), glm::vec4(u, 0), glm::vec4(d, 0), w
-        );
-    // auto actualLookAt = glm::lookAt(camPos, camFront() + camPos, up);
-    glm::vec4 tpos{1.0,2,3,0};
-    glm::vec4 tdir{4.0,5,6,0};
-    glm::vec4 tup{0.0,0,1,0};
-    glm::vec4 ww{3.0,6,9,1};
-    auto tst1 = glm::mat4(tpos,tdir,tup,ww);
-    glm::mat4 tst2(
-        tpos.x, tpos.y, tpos.z, tpos.w,
-        tdir.x, tdir.y, tdir.z, tdir.w,
-        tup.x, tup.y, tup.z, tup.w,
-        ww.x, ww.y, ww.z, ww.w
-        );
-    tst2 = glm::transpose(tst2);
-    auto actualLookAt = glm::lookAt(glm::vec3(tpos), glm::vec3(tpos+tdir),glm::vec3(tup));
-    auto mylookat = myLookAt(glm::vec3(tpos), glm::vec3(tpos+tdir),glm::vec3(tup));
-
-    if (cnter >= 5000) {
-      // std::cout << "da passed params:\n";
-      // std::cout << glm::to_string(t1) << '\n';
-      // std::cout << glm::to_string(t2) << '\n';
-      // std::cout << glm::to_string(t3) << '\n';
-      // std::cout << "tst1:\n";
-      // std::cout << tst1 << '\n';
-      // std::cout << glm::to_string(tst1) << '\n';
-      // std::cout << "tst2:\n";
-      // std::cout << tst2 << '\n';
-      // std::cout << glm::to_string(tst2) << '\n';
-      std::cout << "resulting lookat:\n";
-      std::cout << actualLookAt << '\n';
-      // std::cout << glm::to_string(actualLookAt) << '\n';
-      std::cout << "MY lookat:\n";
-      std::cout << mylookat << '\n';
-      // std::cout << glm::to_string(mylookat) << std::endl;
-      cnter = 0;
-    }
-    cnter++;
-    return mylookat;
-    return actualLookAt;
-    // return glm::lookAt(camPos, camFront() + camPos, up);
   }
 
   bool firsttime = true;
@@ -168,6 +117,7 @@ public:
       firsttime = false;
       return;
     }
+
     glm::vec2 center{WINDOW_WIDTH/2.0, WINDOW_HEIGHT/2.0};
     glm::vec2 delta = center - glm::vec2{xpos, ypos};
     angle -= delta * sensitivity;
@@ -176,7 +126,7 @@ public:
       angle.y = alimit;
     if (angle.y < -alimit)
       angle.y = -alimit;
-    std::cout << "in cam: " << delta.x << " " << delta.y << '\n';
+    // std::cout << "in cam: " << delta.x << " " << delta.y << '\n';
   }
   glm::vec3 camFront() {
     // default dir is facing negative z-axis
@@ -186,15 +136,12 @@ public:
     r = glm::rotate(r, -glm::radians(angle.y), glm::vec3(1,0,0));
     return glm::normalize(r * front);
   }
-  glm::mat4 projectionMatrix(float horizontalFov, float aspectRatio, float n, float f) {
+  glm::mat4 perspectiveMatrix(float horizontalFov, float aspectRatio, float n, float f) {
     float r = tan(horizontalFov/2) * n;
     float l = -r;
     float h = 1/aspectRatio * (r - l);
     float t = h/2;
     float b = -t;
-    // float n = 0.1f, f = 100.0f;
-    // float l = -0.0552, r = -l;
-    // float b = -0.0414, t = -b;
     glm::mat4 projection(
         2.0f * n / (r - l), 0, 0, 0,
         0, 2.0f * n / (t - b), 0, 0,
@@ -204,19 +151,38 @@ public:
     return projection;
   }
   glm::mat4 getProjection() {
-    float horizontalFov = 45.0f; // degrees
+    float horizontalFov = 90.0f; // degrees
     float aspectRatio = 1.0f * WINDOW_WIDTH / WINDOW_HEIGHT;
     float near = 0.1f, far = 100.0f;
-    return projectionMatrix(glm::radians(horizontalFov), aspectRatio, near, far);
+    float zoom = 1/orthoZoom;
+    return perspectiveMatrix(glm::radians(horizontalFov), aspectRatio, near, far);
+    return orthographicMatrix(aspectRatio, zoom, near, far);
+    return glm::ortho(-aspectRatio*zoom, aspectRatio*zoom, -zoom, zoom, near, far);
     auto projection = glm::perspective(glm::radians(horizontalFov), aspectRatio, near, far);
+    return projection;
+  }
+  glm::mat4 orthographicMatrix(float ar, float zoom, float n, float f) {
+    float r = ar*zoom;
+    float l = -r;
+    float t = zoom;
+    float b = -t;
+    glm::mat4 projection(
+        2/(r-l), 0, 0, 0,
+        0, 2/(t-b), 0, 0,
+        0, 0, 2/(n-f), 0,
+        (-r-l)/(r-l), (-t-b)/(t-b), (n+f)/(n-f), 1
+        );
     return projection;
   }
   GLFWwindow* _window;
   glm::vec3 camPos;
   glm::vec2 angle;
   glm::vec3 up{0, 1, 0};
-  float camSpeed = 0.1;
-  float sensitivity = 0.05;
+  float camSpeed = 20;
+  float sensitivity = 0.05f;
+  float orthoZoom = 0.1;
+  float deltaTime = 0.0f;
+  float lastFrame = 0.0f;
   int WINDOW_WIDTH;
   int WINDOW_HEIGHT;
 private:
