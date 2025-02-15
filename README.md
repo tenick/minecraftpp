@@ -16,4 +16,5 @@ OS: Linux Ubuntu 24.04
 - generate GLAD files [here](https://glad.dav1d.de/), make sure `API > gl` version is `4.0` and `Profile` is set to `Core`, and `Generate a loader` is checked. Then click GENERATE.
 - download `glad.zip`, unzip, then move the `include/` folder to `/usr/include/`, and copy the `src/glad.c` file into this repository's root
 - download GLM headers [here (Source code (zip))](https://github.com/g-truc/glm/releases), then just move the `glm/` folder into includes path (usually in `/usr/include/`) 
+
 Compilation: `g++ *.cpp glad.c -o main -Wall -lGL -lGLU -lglut -lGLEW -lglfw -lX11 -lXxf86vm -lXrandr -lpthread -lXi -ldl -lXinerama -lXcursor`
